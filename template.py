@@ -1,4 +1,5 @@
-""" This is a template for a single-file extension.  - ylcb-devs """
+""" This is a template for a single-file extension. - ylcb-devs """
+import discord
 from discord.ext import commands
 from modules.extension import Extension
 from modules.utilities import logger as l
@@ -14,7 +15,7 @@ class ext_name(Extension):
 			bot (`commands.Bot`): `commands.Bot` instance
 		"""
 		"""ext_name(bot)"""
-		super().__init__(bot, "ext.ext_name")
+		super().__init__(bot, "ext_name")
 		self.loop.start()
 	
 	
