@@ -155,7 +155,7 @@ class games(Extension):
 		"""
 		
 		bet = round(bet, 2)
-		if not self.config.data["enabled"] or not _cfg["enabled"]:
+		if not _cfg["enabled"]:
 			await ctx.send(f"{ctx.author.mention}, this game has been disabled by an admin.")
 			return False
 		if points < bet:
