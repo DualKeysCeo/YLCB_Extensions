@@ -444,6 +444,16 @@ class Hub:
 
 class Game:
 	def __init__(self, bot, ctx, bet: float, hub: Hub = None, msg: discord.Message = None):
+		"""
+		Game base class
+
+		Args:
+			bot (`commands.Bot`): `commands.Bot` instance
+			ctx (`commands.Context`): Command context
+			bet (`float`): Amount user bet
+			hub (`Hub`, optional): `Hub` instance. Defaults to `None`.
+			msg (`discord.Message`, optional): Hub or other message to edit instead of send. Defaults to `None`.
+		"""
 		self.outcome = 0
 		self.bet = bet
 		self.bot = bot
@@ -693,7 +703,7 @@ class Blackjack(CardGame):
 
 
 class Dice(Game):
-	def __init__(self, bot, ctx, bet: float, hub: Hub = None, msg = None): 
+	def __init__(self, bot, ctx, bet: float, hub: Hub = None, msg = None):
 		super().__init__(bot, ctx, bet, hub, msg)
 		
 		self.state_check = "check", self.check
