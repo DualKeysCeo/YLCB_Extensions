@@ -259,7 +259,6 @@ class Hub:
 		self.update_timestamp()
 		await self.msg.edit(embed=discord.Embed.from_dict(self.embed_dict))
 		await self.msg.clear_reactions()
-		await self.gsm.get_state()[1]()
 		await self.stop()
 	
 	
