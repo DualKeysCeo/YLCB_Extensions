@@ -99,11 +99,6 @@ class games(Extension):
 			await msg.edit(content=None, embed=embed)
 	
 	
-	@airdrop_spawner.before_loop
-	async def before_airdrop_spawner(self):
-		await self.bot.wait_until_ready()
-	
-	
 	@commands.command(name="hub", aliases=["games"], usage=f"{prefix}hub", brief="A hub to play all your games")
 	async def hub(self, ctx):
 		"""
@@ -115,24 +110,24 @@ class games(Extension):
 	
 	
 	@commands.command(name="chance", aliase=["roll"], usage=f"{prefix}chance <bet:float>", brief="Dice roll")
-	async def chance(self, ctx, bet: float = 0):
+	async def chance(self, ctx, bet: float):
 		"""
 		Dice roll
 
 		Args:
-			bet (`float`, optional): How much the user is betting. Defaults to `0`.
+			bet (`float`): How much the user is betting.
 		"""
 		game = Dice(self.bot, ctx, bet)
 		await game.start()
 		del game
 	
 	@commands.command(name="21", aliases=["bj", "blackjack"], usage=f"{prefix}21 <bet:float> [decks:int]", brief="Simple game of blackjack")
-	async def blackjack(self, ctx, bet: float = 0, decks: int = 4):
+	async def blackjack(self, ctx, bet: float, decks: int = 4):
 		"""
 		Simple game of blackjack
 
 		Args:
-			bet (`float`, optional): How much the user is betting. Defaults to `0`.
+			bet (`float`): How much the user is betting.
 			decks (`int`, optional): Amount of decks to play with. Defaults to `4`.
 		"""
 		game = Blackjack(self.bot, ctx, bet, decks)
@@ -185,14 +180,23 @@ class StateManager:
 	def set_state(self, new_state):
 		for old_state in self.states:
 			if old_state == new_state:
-				l.log(f"Set State:{self.state}<-{new_state}")
+				l.log(f"Set State:{new_state}->{self.state}")
 				self.state = new_state
 	def get_state(self):
 		return self.state
+	async def run_state(self):
+		await self.state[1]()
 
 
 class Hub:
 	def __init__(self, bot, ctx):
+		"""
+		Hub to play all your games
+
+		Args:
+			bot (`commands.Bot`): `commands.Bot` instance
+			ctx (`commands.Context`): Command context
+		"""
 		self.bot = bot
 		self.alive = True
 		self.msg = None
@@ -230,7 +234,7 @@ class Hub:
 	
 	async def start(self):
 		while self.alive:
-			await self.gsm.get_state()[1]()
+			await self.gsm.run_state()
 	
 	
 	async def stop(self):
@@ -368,11 +372,11 @@ class Hub:
 		if self.emoji == "🃏":
 			self.embed_dict["title"] = "Games/21"
 			await self.msg.edit(embed=discord.Embed.from_dict(self.embed_dict))
-			game = Blackjack(self.bot,self.ctx,self.bet,self,self.msg)
+			game = Blackjack(self.bot,self.ctx,self.bet,4,self)
 		if self.emoji == "🎲":
 			self.embed_dict["title"] = "Games/Chance Roll"
 			await self.msg.edit(embed=discord.Embed.from_dict(self.embed_dict))
-			game = Dice(self.bot,self.ctx,self.bet,self,self.msg)
+			game = Dice(self.bot,self.ctx,self.bet,self)
 		if game:
 			await game.start()
 			self.game_outcome = game.outcome
@@ -443,7 +447,7 @@ class Hub:
 
 
 class Game:
-	def __init__(self, bot, ctx, bet: float, hub: Hub = None, msg: discord.Message = None):
+	def __init__(self, bot, ctx, bet: float, hub: Hub = None):
 		"""
 		Game base class
 
@@ -452,7 +456,6 @@ class Game:
 			ctx (`commands.Context`): Command context
 			bet (`float`): Amount user bet
 			hub (`Hub`, optional): `Hub` instance. Defaults to `None`.
-			msg (`discord.Message`, optional): Hub or other message to edit instead of send. Defaults to `None`.
 		"""
 		self.outcome = 0
 		self.bet = bet
@@ -463,9 +466,9 @@ class Game:
 		self.playing = False
 		self.player = ctx.author
 		self.econ = bot.get_cog("economy")
-		if hub: 
+		if hub:
 			self.in_hub = True
-			self.msg = msg
+			self.msg = hub.msg
 		else:
 			self.in_hub = False
 			self.msg = None
@@ -474,16 +477,26 @@ class Game:
 
 
 class CardGame(Game):
-	def __init__(self, bot, ctx, bet: float, hub: Hub = None, msg = None, decks: int = 4):
-		super().__init__(bot, ctx, bet, hub, msg)
+	def __init__(self, bot, ctx, bet: float, hub: Hub = None, decks: int = 4):
+		super().__init__(bot, ctx, bet, hub)
 		self.card_strs = ["alert a developer if you see this", "🇦", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟", "🇯", "🇶", "🇰"]
 		self.decks = decks
 		self.deck = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]*decks
 
 
 class Blackjack(CardGame):
-	def __init__(self, bot, ctx, bet: float, hub: Hub = None, msg = None, decks: int = 4): 
-		super().__init__(bot, ctx, bet, hub, msg, decks)
+	def __init__(self, bot, ctx, bet: float, decks: int = 4, hub: Hub = None):
+		"""
+		Blackjack game
+
+		Args:
+			bot (`commands.Bot`): `commands.Bot` instance
+			ctx (`commands.Context`): Command context
+			bet (`float`): Amount user bet
+			decks (`int`, optional): Amount of decks to play with. Defaults to `4`.
+			hub (`Hub`, optional): If game is ran from hub this will be set. Defaults to `None`.
+		"""
+		super().__init__(bot, ctx, bet, hub, decks)
 		self.dealer_hand = self.deal()
 		self.player_hand = self.deal()
 		
@@ -500,7 +513,7 @@ class Blackjack(CardGame):
 	
 	async def start(self):
 		while self.alive:
-			await self.gsm.get_state()[1]()
+			await self.gsm.run_state()
 	
 	
 	async def stop(self):
@@ -703,8 +716,17 @@ class Blackjack(CardGame):
 
 
 class Dice(Game):
-	def __init__(self, bot, ctx, bet: float, hub: Hub = None, msg = None):
-		super().__init__(bot, ctx, bet, hub, msg)
+	def __init__(self, bot, ctx, bet: float, hub: Hub = None):
+		"""
+		Dice game
+
+		Args:
+			bot (`commands.Bot`): `commands.Bot` instance
+			ctx (`commands.Context`): Command context
+			bet (`float`): Amount user bet
+			hub (`Hub`, optional): If game is ran from hub this will be set. Defaults to `None`.
+		"""
+		super().__init__(bot, ctx, bet, hub)
 		
 		self.state_check = "check", self.check
 		self.state_game = "game", self.game
@@ -717,7 +739,7 @@ class Dice(Game):
 	
 	async def start(self):
 		while self.alive:
-			await self.gsm.get_state()[1]()
+			await self.gsm.run_state()
 	
 	
 	async def stop(self):
