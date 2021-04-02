@@ -336,7 +336,7 @@ class economy(Extension):
 		else: await ctx.send(f"{ctx.author.mention}, congrats you're broke...")
 	
 	
-	#ANCHOR admin commands
+	# admin commands
 	
 	@commands.command(name="set_balance", hidden=True)
 	@u.is_admin()

@@ -164,7 +164,7 @@ class items(Extension):
 		await ctx.send(f"{ctx.author.mention}, you have used this {item['name']}")
 	
 	
-	#ANCHOR admin commands
+	# admin commands
 	
 	@commands.command(name="set_boost", hidden=True)
 	@u.is_admin()
