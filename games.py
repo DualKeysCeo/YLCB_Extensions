@@ -1,7 +1,7 @@
 import datetime
 import os
 import random
-from asyncio import sleep
+from asyncio import TimeoutError, sleep
 from sys import argv
 from typing import Union
 
@@ -49,7 +49,7 @@ class games(Extension):
 				"timestamp": datetime.datetime.now().isoformat(),
 				"color": 0xff8800,
 				"author": {
-					"name": u.discordify(self.bot.user.display_name),
+					"name": u.discordify(str(self.bot.user)),
 					"icon_url": str(self.bot.user.avatar_url)
 				}
 			}
@@ -67,7 +67,10 @@ class games(Extension):
 			
 			await sleep(0.3)
 			def check(payload: discord.RawReactionActionEvent): return payload.user_id != self.bot.user and str(payload.emoji) == "🛄" and payload.message_id == msg.id
-			payload = await self.bot.wait_for("raw_reaction_add", check=check)
+			try:
+				payload = await self.bot.wait_for("raw_reaction_add", check=check, timeout=300)
+			except TimeoutError:
+				await msg.delete()
 			claimed = False
 			user = await self.bot.fetch_user(payload.user_id)
 			reason = ""
@@ -76,18 +79,17 @@ class games(Extension):
 				self.econ.push_transaction_history_from_id(payload.user_id, "Airdrop", money)
 				if item: self.items.add_item_to_inventory_from_d_id(payload.user_id, item["id"])
 			except Exception as e:
-				claimed = False
 				reason = str(e)
 			else:
 				claimed = True
-				l.log(f"{user.name}#{user.discriminator} claimed an airdrop worth ${money}", channel=l.DISCORD)
+				l.log(f"{str(user)} claimed an airdrop worth ${money}", channel=l.DISCORD)
 			
 			if claimed:
 				embed_dict["title"] = "Claimed!"
 				embed_dict["timestamp"] = datetime.datetime.now().isoformat()
 				embed_dict["color"] = 0x00ff00
 				embed_dict["author"] = {
-					"name": u.discordify(user.display_name),
+					"name": u.discordify(str(user)),
 					"icon_url": str(user.avatar_url)
 				}
 			else:
@@ -207,7 +209,7 @@ class Hub:
 			"color": 0x0000ff,
 			"fields": [],
 			"author": {
-				"name": u.discordify(self.bot.user.display_name),
+				"name": u.discordify(str(self.bot.user)),
 				"icon_url": str(self.bot.user.avatar_url)
 			}
 		}
@@ -252,7 +254,7 @@ class Hub:
 				{"name": "Current Balance", "value": f"${self.cog.econ.get_balance_from_d_id(self.player.id)}"},
 			],
 			"author": {
-				"name": u.discordify(self.player.display_name),
+				"name": u.discordify(str(self.player)),
 				"icon_url": str(self.player.avatar_url)
 			}
 		}
@@ -282,7 +284,7 @@ class Hub:
 				{"name": "✅", "value": "Start Game", "inline": True},
 			],
 			"author": {
-				"name": u.discordify(self.bot.user.display_name),
+				"name": u.discordify(str(self.bot.user)),
 				"icon_url": str(self.bot.user.avatar_url)
 			}
 		}
@@ -299,7 +301,7 @@ class Hub:
 			"description": description,
 			"color": 0x0000ff,
 			"author": {
-				"name": u.discordify(self.bot.user.display_name),
+				"name": u.discordify(str(self.bot.user)),
 				"icon_url": str(self.bot.user.avatar_url)
 			}
 		}
@@ -395,7 +397,7 @@ class Hub:
 				{"name": "Current Balance", "value": f"${self.cog.econ.get_balance_from_d_id(self.player.id)}", "inline": True },
 			],
 			"author": {
-				"name": u.discordify(self.player.display_name),
+				"name": u.discordify(str(self.player)),
 				"icon_url": str(self.player.avatar_url)
 			},
 			"footer": {"text": "Directions: ✅: Home | ❌: Exit"}
@@ -424,7 +426,7 @@ class Hub:
 				{"name": "Error", "value": "It appears your game has errored...", "inline": True}
 			],
 			"author": {
-				"name": u.discordify(self.bot.user.display_name),
+				"name": u.discordify(str(self.bot.user)),
 				"icon_url": str(self.bot.user.avatar_url)
 			},
 			"footer": {"text": "Directions: ⬅️: Home | ❌: Exit"}
@@ -542,14 +544,14 @@ class Blackjack(CardGame):
 	
 	async def game(self):
 		self.econ.set_balance_from_d_id(self.player.id, self.econ.get_balance_from_d_id(self.player.id) - self.bet)
-		l.log(f"Blackjack start: {self.player.name}#{self.player.discriminator} | Bet:${self.bet}", channel=l.DISCORD)
+		l.log(f"Blackjack start: {str(self.player)} | Bet:${self.bet}", channel=l.DISCORD)
 		self.playing = True
 		self.embed_dict = {
 			"title":"Ongoing 21 Game",
 			"type": "rich",
 			"color": 0xffdd00,
 			"author": {
-				"name": u.discordify(self.player.display_name),
+				"name": u.discordify(str(self.player)),
 				"icon_url": str(self.player.avatar_url)
 			},
 			"footer": {"text": "Directions: 🔴: Stand | 🟢: Hit"}
@@ -608,7 +610,7 @@ class Blackjack(CardGame):
 			payout = self.bet * self.multiplier
 			self.outcome = payout - self.bet
 			self.cog.econ.set_balance_from_d_id(self.player.id, self.cog.econ.get_balance_from_d_id(self.player.id) + payout)
-			self.cog.econ.push_transaction_history_from_id(self.player.id, "Blackjack", payout)
+			self.cog.econ.push_transaction_history_from_id(self.player.id, "Blackjack", self.outcome)
 			if not self.in_hub:
 				self.embed_dict["color"] = 0x00ff00
 				self.embed_dict["title"] = f"You won ${self.outcome}!"
@@ -626,7 +628,7 @@ class Blackjack(CardGame):
 				self.embed_dict["color"] = 0xffdd00
 		
 		self.cog.items.reset_boost_from_d_id(self.player.id)
-		l.log(f"Blackjack outcome: {self.player.name}#{self.player.discriminator}:{Blackjack.total(self.player_hand)} | Bet:${self.bet} | Multiplier:{self.multiplier}x ({self.boost}) | CPU:{Blackjack.total(self.dealer_hand)}", channel=l.DISCORD)
+		l.log(f"Blackjack outcome: {str(self.player)}:{Blackjack.total(self.player_hand)} | Bet:${self.bet} | Multiplier:{self.multiplier}x ({self.boost}) | CPU:{Blackjack.total(self.dealer_hand)}", channel=l.DISCORD)
 		if not self.in_hub: await self.msg.edit(embed=discord.Embed.from_dict(self.embed_dict))
 		await self.stop()
 	
@@ -768,7 +770,7 @@ class Dice(Game):
 	
 	async def game(self):
 		self.econ.set_balance_from_d_id(self.player.id, self.econ.get_balance_from_d_id(self.player.id) - self.bet)
-		l.log(f"Chance start: {self.player.name}#{self.player.discriminator} | Bet:${self.bet}", channel=l.DISCORD)
+		l.log(f"Chance start: {str(self.player)} | Bet:${self.bet}", channel=l.DISCORD)
 		self.playing = True
 		self.p_score   = random.randint(2,12)
 		self.cpu_score = random.randint(2,12)
@@ -809,7 +811,7 @@ class Dice(Game):
 			self.cog.econ.push_transaction_history_from_id(self.player.id, "Chance Roll", self.outcome)
 		elif self.cpu_score == self.p_score:
 			self.cog.econ.set_balance_from_d_id(self.player.id, points + self.bet)
-		l.log(f"Chance outcome: {self.player.name}#{self.player.discriminator}:{self.p_score} | Bet:${self.bet} | Multiplier:{multiplier}x ({self.boost}) | CPU:{self.cpu_score}", channel=l.DISCORD)
+		l.log(f"Chance outcome: {str(self.player)}:{self.p_score} | Bet:${self.bet} | Multiplier:{multiplier}x ({self.boost}) | CPU:{self.cpu_score}", channel=l.DISCORD)
 		if not self.in_hub:
 			try: await self.msg.edit(embed=discord.Embed.from_dict(embed_dict))
 			except: self.msg = await self.ctx.send(embed=discord.Embed.from_dict(embed_dict))

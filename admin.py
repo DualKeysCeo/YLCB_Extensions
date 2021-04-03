@@ -47,7 +47,7 @@ class admin(Extension):
 				"timestamp": datetime.now().isoformat(),
 				"color": 0x6495ed,
 				"fields": [
-					{"name": "Owner", "value": f"{u.discordify(owner.name)}#{owner.discriminator}", "inline": True},
+					{"name": "Owner", "value": u.discordify(str(owner)), "inline": True},
 					{"name": "Server Created", "value": created.strftime("%m/%d/%Y %H:%M"), "inline": True},
 					{"name": "Members", "value": str(ctx.guild.member_count), "inline": True},
 					{"name": "Region", "value": str(ctx.guild.region), "inline": True},
@@ -66,7 +66,7 @@ class admin(Extension):
 			await ctx.send(embed=discord.Embed.from_dict(embed_dict))
 		else:
 			embed_dict: dict = {
-				"title": f"{u.discordify(user.name)}#{user.discriminator}",
+				"title": str(user),
 				"type": "rich",
 				"color": user.color.value,
 				"timestamp": datetime.now().isoformat(),
@@ -75,7 +75,7 @@ class admin(Extension):
 					{"name": "Status", "value": user.status[0], "inline": True}
 				],
 				"author": {
-					"name": u.discordify(user.display_name),
+					"name": u.discordify(str(user)),
 					"icon_url": str(user.avatar_url)
 				},
 				"footer": {"text": f"ID: {user.id}"}

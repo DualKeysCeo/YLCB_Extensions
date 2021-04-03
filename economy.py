@@ -150,7 +150,7 @@ class economy(Extension):
 			"timestamp": datetime.datetime.now().isoformat(),
 			"color": 0x00ff00,
 			"author": {
-				"name": u.discordify(user.display_name),
+				"name": u.discordify(str(user)),
 				"icon_url": str(user.avatar_url)
 			}
 		}
@@ -162,22 +162,23 @@ class economy(Extension):
 		"""
 		Show server leaderboard
 		"""
+		everyone = self.db.cursor.execute("SELECT * FROM Users").fetchall()
 		lb: list = self.db.cursor.execute("SELECT * FROM Users ORDER BY balance DESC").fetchmany(5)
 		
-		lb_total: int = 0
+		server_total: int = 0
 		fields: list = []
-		for entry in lb: lb_total += entry[4]
+		for entry in everyone: server_total += entry[4]
 		for i, entry in enumerate(lb):
 			entry_user = await self.bot.fetch_user(entry[2])
-			fields.append({"name": f"{i+1}. {u.discordify(entry_user.display_name)}", "value": f"({str(round(entry[4]/lb_total*100, 1))}%) ${'{:,}'.format(entry[4])}"})
+			fields.append({"name": f"{i+1}. {u.discordify(str(entry_user))}", "value": f"({str(round(entry[4]/server_total*100, 1))}%) ${'{:,}'.format(entry[4])}"})
 		embed_dict = {
-			"title":f"Leaderboard (${lb_total})",
+			"title":f"Leaderboard (${server_total})",
 			"type": "rich",
 			"timestamp": datetime.datetime.now().isoformat(),
 			"color": 0x00cc99,
 			"fields": fields,
 			"author": {
-				"name": u.discordify(self.bot.user.display_name),
+				"name": u.discordify(str(self.bot.user)),
 				"icon_url": str(self.bot.user.avatar_url)
 			}
 		}
@@ -199,7 +200,7 @@ class economy(Extension):
 			return
 		amount = round(amount, 2)
 		if self.can_pay_amount(ctx.author.id, amount):
-			l.log(f"Check: {u.discordify(ctx.author.name)}#{ctx.author.discriminator} | Amount:${amount} | Reciever:{reciever.name}#{reciever.discriminator} | Status: AWAITING APPROVAL", channel=l.DISCORD)
+			l.log(f"Check: {u.discordify(str(ctx.author))} | Amount:${amount} | Reciever:{str(reciever)} | Status: AWAITING APPROVAL", channel=l.DISCORD)
 			self.set_balance_from_d_id(ctx.author.id, self.get_balance_from_d_id(ctx.author.id)-amount)
 			embed_dict = {
 				"title":"Check [AWAITING APPROVAL]",
@@ -207,9 +208,9 @@ class economy(Extension):
 				"timestamp": datetime.datetime.now().isoformat(),
 				"color": 0xff8800,
 				"fields": [
-					{"name": "Pay To:", "value": u.discordify(reciever.name)+"#"+reciever.discriminator, "inline":True},
+					{"name": "Pay To:", "value": u.discordify(str(reciever)), "inline":True},
 					{"name": "Balance:", "value": "$"+str(amount), "inline":True},
-					{"name": "From:", "value": u.discordify(ctx.author.name)+"#"+ctx.author.discriminator, "inline":True},
+					{"name": "From:", "value": u.discordify(str(ctx.author)), "inline":True},
 				]
 			}
 			if message: embed_dict["fields"].append({"name": "Message:", "value": message})
@@ -224,12 +225,12 @@ class economy(Extension):
 			
 			if str(payload.emoji) == "✅":
 				embed_dict["title"] = "Check [PENDING]"
-				l.log(f"Check: {ctx.author.name}#{ctx.author.discriminator} | Amount:${amount} | Reciever:{reciever.name}#{reciever.discriminator} | Status: APPROVED,PENDING", channel=l.DISCORD)
+				l.log(f"Check: {str(ctx.author)} | Amount:${amount} | Reciever:{str(reciever)} | Status: APPROVED,PENDING", channel=l.DISCORD)
 			elif str(payload.emoji) == "❎":
 				await msg.delete()
 				await ctx.message.delete()
 				self.set_balance_from_d_id(ctx.author.id, self.get_balance_from_d_id(ctx.author.id)+amount)
-				l.log(f"Check: {ctx.author.name}#{ctx.author.discriminator} | Amount:${amount} | Reciever:{reciever.name}#{reciever.discriminator} | Status: CANCELED", channel=l.DISCORD)
+				l.log(f"Check: {str(ctx.author)} | Amount:${amount} | Reciever:{str(reciever)} | Status: CANCELED", channel=l.DISCORD)
 			
 			embed = discord.Embed.from_dict(embed_dict)
 			await msg.edit(content=reciever.mention,embed=embed)
@@ -248,19 +249,19 @@ class economy(Extension):
 				else:self.set_balance_from_d_id(ctx.author.id, self.get_balance_from_d_id(ctx.author.id)+amount)
 				self.set_balance_from_d_id(reciever.id, self.get_balance_from_d_id(reciever.id)+amount)
 				self.push_transaction_history_from_id(reciever.id, "Transfer", amount)
-				l.log(f"Check: {ctx.author.name}#{ctx.author.discriminator} | Amount:${amount} | Reciever:{reciever.name}#{reciever.discriminator} | Status: ACCEPTED,PAID", channel=l.DISCORD)
+				l.log(f"Check: {str(ctx.author)} | Amount:${amount} | Reciever:{str(reciever)} | Status: ACCEPTED,PAID", channel=l.DISCORD)
 			elif str(payload.emoji) == "❎":
 				embed_dict["title"] = "Check [DECLINED]"
 				embed_dict["color"] = 0xff0000
-				l.log(f"Check: {ctx.author.name}#{ctx.author.discriminator} | Amount:${amount} | Reciever:{reciever.name}#{reciever.discriminator} | Status: DECLINED,REFUNDED", channel=l.DISCORD)
+				l.log(f"Check: {str(ctx.author)} | Amount:${amount} | Reciever:{str(reciever)} | Status: DECLINED,REFUNDED", channel=l.DISCORD)
 				self.set_balance_from_d_id(ctx.author.id, self.get_balance_from_d_id(ctx.author.id)+amount)
 			embed_dict["timestamp"] = datetime.datetime.now().isoformat()
 			await msg.edit(content=None, embed=discord.Embed.from_dict(embed_dict))
 			try: await msg.clear_reactions()
 			except Exception as e: l.log(e, l.WRN, l.DISCORD)
 		else:
-			l.log(f"Check: {ctx.author.name}#{ctx.author.discriminator} | Amount:${amount} | Reciever:{reciever.name}#{reciever.discriminator} | Status: BANK DECLINED", channel=l.DISCORD)
-			await ctx.send(f"{ctx.author.mention}, you only have ${self.get_balance_from_d_id(ctx.author.id)}")
+			l.log(f"Check: {str(ctx.author)} | Amount:${amount} | Reciever:{str(reciever)} | Status: BANK DECLINED", channel=l.DISCORD)
+			await ctx.send(f"{str(ctx.author.mention)}, you only have ${self.get_balance_from_d_id(ctx.author.id)}")
 	
 	
 	@commands.command(name="request", aliases=["req"], usage=f"{prefix}request <sender:user> [amount:float=50] [message:str]", brief="Request money from another user")
@@ -277,16 +278,16 @@ class economy(Extension):
 			await ctx.send(f"{ctx.author.mention}, you cannot request money from yourself")
 			return
 		if self.can_pay_amount(sender.id, amount):
-			l.log(f"Money Request: {ctx.author.name}#{ctx.author.discriminator} | Amount:${amount} | Payer:{sender.name}#{sender.discriminator} | Status: APPROVED,PENDING", channel=l.DISCORD)
+			l.log(f"Money Request: {str(ctx.author)} | Amount:${amount} | Payer:{str(sender)} | Status: APPROVED,PENDING", channel=l.DISCORD)
 			embed_dict = {
 				"title":"Money Request [PENDING]",
 				"type": "rich",
 				"timestamp": datetime.datetime.now().isoformat(),
 				"color": 0xff8800,
 				"fields": [
-					{"name": "Pay To:", "value": u.discordify(ctx.author.name)+"#"+ctx.author.discriminator, "inline":True},
+					{"name": "Pay To:", "value": u.discordify(str(ctx.author)), "inline":True},
 					{"name": "Balance:", "value": "$"+str(amount), "inline":True},
-					{"name": "From:", "value": u.discordify(sender.name)+"#"+sender.discriminator, "inline":True},
+					{"name": "From:", "value": u.discordify(str(sender)), "inline":True},
 				]
 			}
 			if message: embed_dict["fields"].append({"name": "Message:", "value": message})
@@ -309,18 +310,18 @@ class economy(Extension):
 				except Exception as e: l.log(e, l.ERR, l.DISCORD)
 				else: self.set_balance_from_d_id(ctx.author.id, self.get_balance_from_d_id(ctx.author.id)+amount)
 				self.push_transaction_history_from_id(ctx.author.id, "Transfer", amount)
-				l.log(f"Money Request: {ctx.author.display_name}#{ctx.author.discriminator} | Amount:${amount} | Payer:{sender.display_name}#{sender.discriminator} | Status: ACCEPTED,PAID", channel=l.DISCORD)
+				l.log(f"Money Request: {str(ctx.author)} | Amount:${amount} | Payer:{str(sender)} | Status: ACCEPTED,PAID", channel=l.DISCORD)
 			elif str(payload.emoji) == "❎":
 				embed_dict["title"] = "Money Request [DECLINED]"
 				embed_dict["color"] = 0xff0000
-				l.log(f"Money Request: {ctx.author.display_name}#{ctx.author.discriminator} | Amount:${amount} | Payer:{sender.display_name}#{sender.discriminator} | Status: DECLINED,REFUNDED", channel=l.DISCORD)
+				l.log(f"Money Request: {str(ctx.author)} | Amount:${amount} | Payer:{str(sender)} | Status: DECLINED,REFUNDED", channel=l.DISCORD)
 				self.set_balance_from_d_id(sender.id, self.get_balance_from_d_id(sender.id)+amount)
 			embed_dict["timestamp"] = datetime.datetime.now().isoformat()
 			await msg.edit(content=None, embed=discord.Embed.from_dict(embed_dict))
 			try: await msg.clear_reactions()
 			except Exception as e: l.log(e, l.WRN, l.DISCORD)
 		else:
-			l.log(f"Money Request: {ctx.author.display_name}#{ctx.author.discriminator} | Amount:${amount} | Payer:{sender.display_name}#{sender.discriminator} | Status: DECLINED", channel=l.DISCORD)
+			l.log(f"Money Request: {str(ctx.author)} | Amount:${amount} | Payer:{str(sender)} | Status: DECLINED", channel=l.DISCORD)
 			await ctx.send(f"{ctx.author.mention}, that user has insufficient funds!")
 	
 	

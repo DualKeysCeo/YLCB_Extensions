@@ -89,7 +89,7 @@ class items(Extension):
 			"timestamp": datetime.datetime.now().isoformat(),
 			"color": 0x6275be,
 			"author": {
-				"name": u.discordify(ctx.author.display_name),
+				"name": u.discordify(str(ctx.author)),
 				"icon_url": str(ctx.author.avatar_url)
 			}
 		}
@@ -132,7 +132,7 @@ class items(Extension):
 			"color": 0x6275be,
 			"description": description,
 			"author": {
-				"name": u.discordify(user.display_name),
+				"name": u.discordify(str(user)),
 				"icon_url": str(user.avatar_url)
 			}
 		}
